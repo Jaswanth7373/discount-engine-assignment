@@ -16,9 +16,10 @@ Three ways to feed it, all through the same untouched engine:
 
 1. `npm install`
 2. `cp .env.example .env.local` and set `GROQ_API_KEY` (free key at console.groq.com)
-3. `npx vercel dev`, then open the URL it prints
+3. `npm run dev`, then open http://localhost:5173
 
-`npm run dev` also works and serves the UI on http://localhost:5173, but without the `/api` function. CSV and PDF work fully. The plain-English rule box then shows a friendly "AI rule parsing isn't available in this environment" message instead of failing.
+The dev server also serves `/api/parse-rule` locally, so every feature works, including plain-English rules.
+Without a key, CSV and PDF work fully and the plain-English box shows a friendly "isn't configured" message.
 
 ## Try it
 
@@ -27,6 +28,8 @@ Three ways to feed it, all through the same untouched engine:
 3. Upload `sample-data/cart-scanned.pdf`. You should get a clear "scanned image" error, and the cart is kept.
 4. Type `Give a discount for big orders`. It's flagged as too vague, so nothing is added.
 5. Type `20% off for Natura Casa brand, stackable with other offers`, check the card, then click **Confirm**. Prices update.
+
+More scenarios (ties, stacking, thresholds, several cart offers, broken files, a two-page PDF) are in [test-data/](test-data/README.md).
 
 | Demo file | Shows |
 |---|---|
@@ -79,18 +82,14 @@ src/components/      UI pieces (CartSummary, RuleComposer, FileUploader, …)
 
 ## Tests
 
-```bash
-npm test
-```
+| Command | What it checks |
+|---|---|
+| `npm test` | 107 unit tests: engine (brief results, the brief's exact "Rule(s) applied" text, ties, stacking, Rs.0 floor, thresholds at 3,999 / 4,000, several cart offers), CSV, PDF (real pdf.js on the sample PDFs), AI-output validation with mocked LLM, API handler |
+| `npm run build && npm run preview`, then `npm run test:e2e` | 133 end-to-end checks in a real browser: uploads every file in `test-data/`, compares the screen with hand-calculated numbers **and** the engine, checks error files keep the previous data, runs plain-English parse → confirm → re-run on the live LLM, phone layout, clean console |
+| `npm run check:nl` | 15 plain-English sentences against the live LLM, written to `test-data/13-plain-english-rules.md` |
+| `npm run make:test-data` | Regenerates `test-data/` and its guide (expected results come from the real code) |
 
-91 tests cover:
-
-- **Engine:** the sample results from the brief, ties, stacking order, the Rs.0 floor, case-insensitive matching, and cart thresholds at 3,999 / 4,000.
-- **PDF adapter:** fixtures plus real pdf.js extraction of the sample PDFs.
-- **AI rule validator:** checked against mocked model outputs.
-- **Client adapter:** tested with a mocked `fetch`.
-- **API handler:** input validation, error mapping, and no leaking of upstream errors.
-- **Cart offer row:** rendered output.
+**[test-data/README.md](test-data/README.md)** says which file to upload where and what you should see for each of the 12 scenarios.
 
 ## Deploying (Vercel)
 

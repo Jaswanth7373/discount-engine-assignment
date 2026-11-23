@@ -63,6 +63,15 @@ const S = {
   }),
 }
 
+/** Which cart items (or the cart) a rule is currently applied to, for the rules table. */
+function ruleUsage(rule, calculation) {
+  if (rule.scope === 'cart') {
+    return calculation.cartOffer?.rule.ruleId === rule.ruleId ? 'Whole cart' : 'Not applied'
+  }
+  const used = calculation.items.filter((r) => r.appliedRules.includes(rule.ruleId)).map((r) => r.itemId)
+  return used.length > 0 ? used.join(', ') : 'Not applied'
+}
+
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 // ── Component ────────────────────────────────────────────────────
@@ -143,7 +152,7 @@ export default function App() {
       </header>
 
       <main className="app-main" style={S.main}>
-        <div className="grid2">
+        <div>
           {/* Rules */}
           <section style={S.section} aria-labelledby="rules-title">
             <h2 id="rules-title" style={S.sectionTitle}>Discount Rules</h2>
@@ -162,6 +171,13 @@ export default function App() {
                 <DataTable
                   columns={[
                     ...RULES_COLUMNS,
+                    {
+                      key: 'usage',
+                      label: 'Applied To',
+                      render: (_, row) => (
+                        <span data-testid={`usage-${row.ruleId}`} style={{ fontSize: 11 }}>{ruleUsage(row, calculation)}</span>
+                      ),
+                    },
                     {
                       key: 'remove',
                       label: '',

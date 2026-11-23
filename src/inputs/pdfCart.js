@@ -85,19 +85,28 @@ export function linesToRows(lines) {
   let orderId = null
   const rows = []
 
-  for (const line of lines) {
+  // Pages that repeat the table header: anything above it on that page is a
+  // page title ("Order #… (continued)"), never cart data.
+  const headerIndexByPage = new Map()
+  lines.forEach((line, i) => {
+    if (!headerIndexByPage.has(line[0].page) && headerColumnStarts(line)) headerIndexByPage.set(line[0].page, i)
+  })
+
+  lines.forEach((line, i) => {
     const text = lineText(line)
     const headerStarts = headerColumnStarts(line)
+    const pageHeaderAt = headerIndexByPage.get(line[0].page)
+    const orderMatch = /order\s*#\s*([A-Z0-9-]+)/i.exec(text)
 
     if (headerStarts) {
-      starts = headerStarts // also handles a header repeated on later pages
-      continue
+      starts = headerStarts
+      return
     }
-    if (!starts) {
-      orderId ??= /order\s*#?\s*([A-Z0-9-]+)/i.exec(text)?.[1] ?? null
-      continue
+    if (!starts || (pageHeaderAt !== undefined && i < pageHeaderAt) || orderMatch) {
+      orderId ??= orderMatch?.[1] ?? null
+      return
     }
-    if (isSeparator(text)) continue
+    if (isSeparator(text)) return
 
     const cells = ['', '', '', '']
     for (const frag of line) {
@@ -108,7 +117,7 @@ export function linesToRows(lines) {
       cells[col] = `${cells[col]} ${frag.str}`.trim()
     }
     rows.push(cells.map((c) => c.replace(/\s+/g, ' ')))
-  }
+  })
 
   if (!starts) {
     return {

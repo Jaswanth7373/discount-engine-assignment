@@ -3,7 +3,7 @@
  * Non-blocking checks shown on the rule confirmation card.
  */
 
-const norm = (s) => s.trim().toLowerCase()
+const norm = (s) => s.trim().replace(/\s+/g, ' ').toLowerCase()
 
 function editDistance(a, b) {
   const dp = Array.from({ length: b.length + 1 }, (_, j) => j)

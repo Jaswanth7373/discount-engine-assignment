@@ -1,0 +1,3 @@
+rule_id,scope,applies_to,type,value,stackable,min_cart_value
+RULE-01,brand,Budget Home,flat,500,false,
+RULE-02,platform,Noon,percentage,10,true,

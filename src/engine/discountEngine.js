@@ -36,11 +36,13 @@
  * @property {string[]} appliedRules      in the order they were applied
  * @property {string[]} skippedRules      non-stackable rules that lost to the winner
  * @property {OfferStatus} status
+ * @property {string} rulesApplied        rule IDs in the brief's format, e.g. "RULE-01 wins (Rs.195 saving > Rs.150)"
  * @property {string} reasoning           customer-readable explanation
  *
  * @typedef {Object} CartOffer
  * @property {DiscountRule} rule
  * @property {number} saving              whole rupees
+ * @property {string} explanation         e.g. "RULE-04: Rs.5,932 ≥ Rs.4,000 → 10% off entire cart → −Rs.593"
  *
  * @typedef {Object} CartNudge
  * @property {DiscountRule} rule
@@ -59,7 +61,8 @@ import { formatRs } from './format.js'
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-const normalise = (s) => (typeof s === 'string' ? s.trim().toLowerCase() : '')
+// Names match ignoring case, surrounding spaces and repeated inner spaces ("Amazon  India" = "amazon india").
+const normalise = (s) => (typeof s === 'string' ? s.trim().replace(/\s+/g, ' ').toLowerCase() : '')
 
 /** Rounds to the nearest rupee, halves going up. Epsilon absorbs float noise (e.g. 0.1 + 0.2). */
 export function roundRupees(amount) {
@@ -158,6 +161,53 @@ function buildReasoning(winner, losers, stacked) {
   return parts.join(' + ')
 }
 
+/** "15%" / "Rs.150": the bare amount, for "(−15%)"-style notes. */
+function shortValue(rule) {
+  return rule.type === 'percentage' ? `${rule.value}%` : formatRs(rule.value)
+}
+
+/** Shows two savings so they visibly differ: whole rupees normally, paise when they round the same. */
+function savingPair(a, b) {
+  const sameRupee = roundRupees(a) === roundRupees(b)
+  const fmt = (n) => formatRs(sameRupee ? Math.round(n * 100) / 100 : roundRupees(n))
+  return [fmt(a), fmt(b)]
+}
+
+/**
+ * The "Rule(s) applied" line in the brief's format, e.g.
+ *   "RULE-01 wins (Rs.195 saving > Rs.150)"
+ *   "RULE-02 (−Rs.150) + RULE-03 stacked (−10%)"
+ *   "RULE-01 (15% off)"   "RULE-03 (10% off, stackable)"   "No rules match"
+ */
+function buildRulesApplied(winner, losers, stacked) {
+  const parts = []
+
+  if (winner) {
+    const id = winner.rule.ruleId
+    if (losers.length > 0) {
+      const best = losers[0]
+      if (best.saving === winner.saving) {
+        parts.push(`${id} wins tie with ${best.rule.ruleId} (both ${formatRs(roundRupees(winner.saving))}, lower rule ID)`)
+      } else {
+        const [won, lost] = savingPair(winner.saving, best.saving)
+        parts.push(`${id} wins (${won} saving > ${lost})`)
+      }
+    } else {
+      parts.push(stacked.length > 0 ? `${id} (−${shortValue(winner.rule)})` : `${id} (${offerValue(winner.rule)})`)
+    }
+  }
+
+  for (const rule of stacked) {
+    parts.push(
+      parts.length > 0
+        ? `${rule.ruleId} stacked (−${shortValue(rule)})`
+        : `${rule.ruleId} (${offerValue(rule)}, stackable)`,
+    )
+  }
+
+  return parts.length > 0 ? parts.join(' + ') : 'No rules match'
+}
+
 /**
  * Applies the active item-level discount rules to a single cart item.
  *
@@ -190,6 +240,7 @@ export function applyDiscounts(item, rules) {
       appliedRules: [],
       skippedRules: [],
       status: 'none',
+      rulesApplied: 'No rules match',
       reasoning: 'No offers available',
     }
   }
@@ -226,6 +277,7 @@ export function applyDiscounts(item, rules) {
     appliedRules,
     skippedRules: losers.map((l) => l.rule.ruleId),
     status,
+    rulesApplied: buildRulesApplied(winner, losers, stacked),
     reasoning: buildReasoning(winner, losers, stacked),
   }
 }
@@ -264,7 +316,14 @@ export function evaluateCartRules(subtotal, rules) {
     .map((rule) => ({ rule, saving: savingFor(rule, subtotal) }))
     .sort((a, b) => b.saving - a.saving || compareRuleIds(a.rule, b.rule))
 
-  const cartOffer = qualifying[0] ?? null
+  const best = qualifying[0]
+  const cartOffer = best
+    ? {
+        ...best,
+        // Brief format: "RULE-04: Rs.5,932 ≥ Rs.4,000 → 10% off entire cart → −Rs.593"
+        explanation: `${best.rule.ruleId}: ${formatRs(subtotal)} ≥ ${formatRs(best.rule.minCartValue)} → ${offerValue(best.rule)} entire cart → −${formatRs(best.saving)}`,
+      }
+    : null
   const currentSaving = cartOffer?.saving ?? 0
 
   const nudgeRule = cartRules

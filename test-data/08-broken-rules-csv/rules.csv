@@ -1,0 +1,13 @@
+rule_id,scope,applies_to,type,value,stackable,min_cart_value
+RULE-01,platform,Amazon India,percentage,15,false,
+RULE-02,category,Home Decor,percentage,10,false,
+RULE-03,brand,Natura Casa,percentage,150,false,
+RULE-04,cart,,percentage,10,false,
+RULE-05,brand,,flat,100,false,
+RULE-06,platform,Flipkart,flat,-50,false,
+RULE-07,platform,Noon,flat,abc,false,
+RULE-01,brand,Nordic Basics,flat,100,false,
+RULE-08,brand,Natura Casa,flat,150,false,2000
+RULE-09,platform,Flipkart,percentage,10,yes,
+,platform,Flipkart,percentage,10,false,
+RULE-10,cart,Amazon India,percentage,5,false,3000

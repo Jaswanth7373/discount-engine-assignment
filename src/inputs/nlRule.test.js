@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { interpretModelOutput, parseRuleText, UNUSABLE_OUTPUT } from './nlRule.js'
+import { interpretModelOutput, parseRuleText, UNUSABLE_OUTPUT, AMBIGUOUS_HINT as AMBIGUOUS_HINT_TEXT } from './nlRule.js'
 import { checkAppliesTo } from './ruleHints.js'
 
 const envelope = (rule, status = 'ok', reason = 'ok') => JSON.stringify({ status, reason, rule })
@@ -77,7 +77,7 @@ describe('interpretModelOutput (validating mocked LLM output)', () => {
     expect(r.ok).toBe(false)
     expect(r.ambiguous).toBe(true)
     expect(r.error).toBe(
-      'No discount amount and no minimum order value were given. Please include a discount value and, for cart offers, a minimum cart value.',
+      'No discount amount and no minimum order value were given. ' + AMBIGUOUS_HINT_TEXT,
     )
   })
 

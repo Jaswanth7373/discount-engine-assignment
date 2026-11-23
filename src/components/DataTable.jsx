@@ -53,7 +53,7 @@ export default function DataTable({ columns, rows, rowKey, emptyMessage = 'No da
               style={{ background: i % 2 === 0 ? '#fff' : '#fafafa', borderBottom: '1px solid #f0f0f0' }}
             >
               {columns.map((col) => (
-                <td key={col.key} style={{ padding: '6px 10px', color: '#131A48', verticalAlign: 'top', whiteSpace: col.nowrap ? 'nowrap' : undefined }}>
+                <td key={col.key} data-col={col.key} style={{ padding: '6px 10px', color: '#131A48', verticalAlign: 'top', whiteSpace: col.nowrap ? 'nowrap' : undefined }}>
                   {col.render ? col.render(row[col.key], row) : row[col.key] ?? '—'}
                 </td>
               ))}

@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "make:pdfs": "node scripts/make-sample-pdfs.mjs"
+    "make:pdfs": "node scripts/make-sample-pdfs.mjs",
+    "make:test-data": "node scripts/make-test-data.mjs",
+    "check:nl": "node scripts/check-nl-prompts.mjs",
+    "test:e2e": "node e2e/run-e2e.mjs"
   },
   "dependencies": {
     "papaparse": "^5.4.1",
@@ -21,6 +24,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
     "pdf-lib": "^1.17.1",
+    "puppeteer-core": "^23.11.1",
     "vite": "^5.0.0",
     "vitest": "^2.1.9"
   }

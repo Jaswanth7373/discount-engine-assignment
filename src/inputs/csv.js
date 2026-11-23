@@ -14,12 +14,33 @@ import { ok, fail } from './inputResult.js'
 import { validateRuleFields } from './ruleSchema.js'
 import { parsePrice } from './cartItem.js'
 
-function parseCsv(csvText) {
-  return Papa.parse(csvText.trim(), {
+const RULE_COLUMNS = ['rule_id', 'scope', 'applies_to', 'type', 'value', 'stackable', 'min_cart_value']
+const REQUIRED_RULE_COLUMNS = ['rule_id', 'scope', 'type', 'value']
+const CART_COLUMNS = ['item_id', 'product', 'brand', 'platform', 'base_price']
+
+/**
+ * Parses CSV text and checks the header has the columns this kind of file needs,
+ * so a cart file dropped into the rules box gets one clear message, not a list of bad rows.
+ * @returns {{ ok: true, rows: Record<string, string>[] } | { ok: false, error: string }}
+ */
+function readTable(csvText, kind, expected, required) {
+  const expectedText = `Expected columns: ${expected.join(', ')}.`
+  if (csvText.trim() === '') return fail(`This file is empty. ${expectedText}`)
+
+  const { data: rows, errors, meta } = Papa.parse(csvText.trim(), {
     header: true,
     skipEmptyLines: true,
     transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, '_'),
   })
+
+  const missing = required.filter((col) => !meta.fields?.includes(col))
+  if (missing.length > 0) {
+    return fail(`This doesn't look like a ${kind} file (missing: ${missing.join(', ')}). ${expectedText}`)
+  }
+  if (errors.length > 0 && rows.length === 0) {
+    return fail(`Couldn't read this ${kind} file. Check it is comma-separated with a header row. ${expectedText}`)
+  }
+  return { ok: true, rows }
 }
 
 const isBlank = (v) => v === undefined || v === null || String(v).trim() === ''
@@ -37,10 +58,9 @@ function parseBoolean(v) {
  * @returns {import('./inputResult.js').InputResult<import('../engine/discountEngine.js').DiscountRule[]>}
  */
 export function parseRulesCSV(csvText) {
-  const { data: rows, errors: parseErrors } = parseCsv(csvText)
-  if (parseErrors.length > 0 && rows.length === 0) {
-    return fail(`Couldn't read this CSV: ${parseErrors[0].message}`)
-  }
+  const table = readTable(csvText, 'rules', RULE_COLUMNS, REQUIRED_RULE_COLUMNS)
+  if (!table.ok) return table
+  const { rows } = table
 
   const data = []
   const warnings = []
@@ -82,7 +102,7 @@ export function parseRulesCSV(csvText) {
     return fail(
       warnings.length > 0
         ? `No valid rules found. ${warnings.join('. ')}`
-        : 'No rules found. Expected columns: rule_id, scope, applies_to, type, value, stackable, min_cart_value.',
+        : `No rules found. Expected columns: ${RULE_COLUMNS.join(', ')}.`,
     )
   }
   return ok(data, warnings)
@@ -93,10 +113,9 @@ export function parseRulesCSV(csvText) {
  * @returns {import('./inputResult.js').InputResult<import('../engine/discountEngine.js').CartItem[]>}
  */
 export function parseCartCSV(csvText) {
-  const { data: rows, errors: parseErrors } = parseCsv(csvText)
-  if (parseErrors.length > 0 && rows.length === 0) {
-    return fail(`Couldn't read this CSV: ${parseErrors[0].message}`)
-  }
+  const table = readTable(csvText, 'cart', CART_COLUMNS, CART_COLUMNS)
+  if (!table.ok) return table
+  const { rows } = table
 
   const data = []
   const warnings = []
@@ -128,7 +147,7 @@ export function parseCartCSV(csvText) {
 
   if (data.length === 0) {
     return fail(
-      'No cart items found. Expected columns: item_id, product, brand, platform, base_price.',
+      `No cart items found. Expected columns: ${CART_COLUMNS.join(', ')}.`,
     )
   }
   return ok(data, warnings)

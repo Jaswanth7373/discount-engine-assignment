@@ -51,6 +51,21 @@ describe('sample data (expected results from the brief)', () => {
     expect(byId[id].status).toBe(status)
   })
 
+  it.each([
+    ['ITEM-01', 'RULE-01 wins (Rs.195 saving > Rs.150)'],
+    ['ITEM-02', 'RULE-02 (−Rs.150) + RULE-03 stacked (−10%)'],
+    ['ITEM-03', 'RULE-01 (15% off)'],
+    ['ITEM-04', 'No rules match'],
+    ['ITEM-05', 'RULE-01 (15% off)'],
+    ['ITEM-06', 'RULE-03 (10% off, stackable)'],
+  ])('%s "Rule(s) applied" matches the brief: %s', (id, text) => {
+    expect(byId[id].rulesApplied).toBe(text)
+  })
+
+  it('describes the cart offer like the brief', () => {
+    expect(result.cartOffer.explanation).toBe('RULE-04: Rs.5,932 ≥ Rs.4,000 → 10% off entire cart → −Rs.593')
+  })
+
   it('explains why RULE-01 beat RULE-02 on ITEM-01', () => {
     expect(byId['ITEM-01'].skippedRules).toEqual(['RULE-02'])
     expect(byId['ITEM-01'].reasoning).toBe(
@@ -87,6 +102,7 @@ describe('item-level rules', () => {
     expect(r.appliedRules).toEqual(['RULE-02'])
     expect(r.finalPrice).toBe(900)
     expect(r.reasoning).toContain('same saving')
+    expect(r.rulesApplied).toBe('RULE-02 wins tie with RULE-10 (both Rs.100, lower rule ID)')
   })
 
   it('compares exact savings, not rounded ones', () => {
@@ -95,7 +111,9 @@ describe('item-level rules', () => {
       rule({ ruleId: 'RULE-01', scope: 'brand', appliesTo: 'Natura Casa', type: 'flat', value: 150 }),
       rule({ ruleId: 'RULE-02', value: 15 }),
     ]
-    expect(applyDiscounts(item({ basePrice: 1003 }), rules).appliedRules).toEqual(['RULE-02'])
+    const r = applyDiscounts(item({ basePrice: 1003 }), rules)
+    expect(r.appliedRules).toEqual(['RULE-02'])
+    expect(r.rulesApplied).toBe('RULE-02 wins (Rs.150.45 saving > Rs.150)')
   })
 
   it('applies a stackable rule on its own when no non-stackable rule matches', () => {
@@ -134,6 +152,13 @@ describe('item-level rules', () => {
     expect(r.appliedRules).toEqual(['RULE-X'])
   })
 
+  it('treats repeated inner spaces as one ("Amazon  India")', () => {
+    const r = applyDiscounts(item({ platform: 'Amazon  India' }), [rule()])
+    expect(r.appliedRules).toEqual(['RULE-X'])
+    // and an "s" in a name is not mistaken for whitespace
+    expect(applyDiscounts(item({ brand: 'Nordic Basics' }), [rule({ scope: 'brand', appliesTo: 'Nordic Basics' })]).status).toBe('applied')
+  })
+
   it('never applies cart rules to individual items', () => {
     expect(applyDiscounts(item(), [cartRule('RULE-04', 10, 1)]).status).toBe('none')
   })
@@ -149,7 +174,7 @@ describe('cart-level rules', () => {
   const rules = [cartRule('RULE-04', 10, 4000)]
 
   it('triggers at exactly the threshold', () => {
-    expect(evaluateCartRules(4000, rules).cartOffer).toEqual({ rule: rules[0], saving: 400 })
+    expect(evaluateCartRules(4000, rules).cartOffer).toMatchObject({ rule: rules[0], saving: 400 })
   })
 
   it('does not trigger one rupee below, and nudges instead', () => {

@@ -93,6 +93,24 @@ describe('layout → rows', () => {
     expect(table).toEqual({ ok: true, orderId: 'OP-1', rows: [['Desk Organiser', '', 'Flipkart', 'Rs.899']] })
   })
 
+  it('ignores page titles above a repeated header on later pages', () => {
+    const header = (page) => [frag('Product', 50, 740, page), frag('Brand', 190, 740, page), frag('Platform', 310, 740, page), frag('Base Price', 430, 740, page)]
+    const items = [
+      frag('Order #OP-7 | Date: today', 50, 780, 1),
+      ...header(1),
+      frag('Plant Stand', 50, 714, 1), frag('Nordic Basics', 190, 714, 1), frag('Noon', 310, 714, 1), frag('Rs.1,240', 430, 714, 1),
+      frag('Order #OP-7 | Date: today (continued)', 50, 780, 2),
+      ...header(2),
+      frag('Photo Frame', 50, 714, 2), frag('LivSpace Pro', 190, 714, 2), frag('Flipkart', 310, 714, 2), frag('Rs.399', 430, 714, 2),
+    ]
+    const table = linesToRows(groupIntoLines(items))
+    expect(table.rows).toEqual([
+      ['Plant Stand', 'Nordic Basics', 'Noon', 'Rs.1,240'],
+      ['Photo Frame', 'LivSpace Pro', 'Flipkart', 'Rs.399'],
+    ])
+    expect(table.orderId).toBe('OP-7')
+  })
+
   it('errors when there is no header row', () => {
     const table = linesToRows(groupIntoLines([frag('Hello world', 50, 700)]))
     expect(table.ok).toBe(false)

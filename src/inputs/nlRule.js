@@ -16,7 +16,8 @@ export const MAX_TEXT_LENGTH = 300
 const CLIENT_TIMEOUT_MS = 15_000 // server gives up at 10s; this only catches a hung connection
 
 export const UNUSABLE_OUTPUT = "The AI returned something I couldn't use. Please rephrase the rule."
-const AMBIGUOUS_HINT = 'Please include a discount value and, for cart offers, a minimum cart value.'
+export const AMBIGUOUS_HINT =
+  'Describe one discount with its value, e.g. "10% off Flipkart items" or, for cart offers, with a minimum cart value: "Rs.500 off when the cart is Rs.5,000 or more".'
 
 const envelopeSchema = z.object({
   status: z.enum(['ok', 'ambiguous']),
@@ -119,7 +120,7 @@ export async function parseRuleText(text, { fetchImpl = fetch, endpoint = '/api/
   const isJson = (response.headers.get('content-type') ?? '').includes('application/json')
   if (!isJson) {
     // e.g. `npm run dev` without the serverless function: Vite answers 404 / HTML.
-    return fail("AI rule parsing isn't available in this environment. Run the app with `npx vercel dev` or use the live site.")
+    return fail("AI rule parsing isn't available in this environment. Run the app with `npm run dev` or use the live site.")
   }
 
   let body

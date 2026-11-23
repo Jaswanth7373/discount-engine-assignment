@@ -1,0 +1,5 @@
+rule_id,scope,applies_to,type,value,stackable,min_cart_value
+RULE-9,platform,Amazon India,percentage,20,false,
+RULE-10,brand,Natura Casa,flat,200,false,
+RULE-11,brand,Nordic Basics,flat,150,false,
+RULE-12,platform,Flipkart,flat,150,false,
