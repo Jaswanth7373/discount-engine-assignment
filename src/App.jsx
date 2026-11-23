@@ -15,9 +15,11 @@ import FileUploader from './components/FileUploader.jsx'
 import DataTable from './components/DataTable.jsx'
 import InputStatus from './components/InputStatus.jsx'
 import CartSummary from './components/CartSummary.jsx'
+import RuleComposer from './components/RuleComposer.jsx'
 import { parseRulesCSV, parseCartCSV } from './inputs/csv.js'
 import { parsePdfCart } from './inputs/pdfCart.js'
 import { fail } from './inputs/inputResult.js'
+import { nextRuleId } from './inputs/ruleSchema.js'
 import { calculateCart, offerValue } from './engine/discountEngine.js'
 import { formatRs } from './engine/format.js'
 
@@ -94,6 +96,16 @@ export default function App() {
     if (revealResults) setShowResults(true)
   }
 
+  /** Adds one confirmed rule (from any input mode) and reveals the re-run results. */
+  function addRule(ruleFields) {
+    setRules((current) => [...current, { ruleId: nextRuleId(current), ...ruleFields }])
+    if (cartItems.length > 0) setShowResults(true)
+  }
+
+  function removeRule(ruleId) {
+    setRules((current) => current.filter((r) => r.ruleId !== ruleId))
+  }
+
   async function handleRulesFile(file) {
     loadRules(parseRulesCSV(await file.text()), file.name)
   }
@@ -142,7 +154,27 @@ export default function App() {
             {rules.length > 0 && (
               <div style={{ marginTop: '0.75rem' }}>
                 <div style={S.count}>{plural(rules.length, 'active rule')}</div>
-                <DataTable columns={RULES_COLUMNS} rows={rules} rowKey="ruleId" />
+                <DataTable
+                  columns={[
+                    ...RULES_COLUMNS,
+                    {
+                      key: 'remove',
+                      label: '',
+                      render: (_, row) => (
+                        <button
+                          type="button"
+                          onClick={() => removeRule(row.ruleId)}
+                          aria-label={`Remove ${row.ruleId}`}
+                          style={{ background: 'none', border: 'none', color: '#c0392b', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}
+                        >
+                          Remove
+                        </button>
+                      ),
+                    },
+                  ]}
+                  rows={rules}
+                  rowKey="ruleId"
+                />
               </div>
             )}
           </section>
@@ -178,6 +210,11 @@ export default function App() {
             )}
           </section>
         </div>
+
+        <section style={S.section} aria-labelledby="nl-title">
+          <h2 id="nl-title" style={S.sectionTitle}>Add a Rule in Plain English</h2>
+          <RuleComposer rules={rules} cartItems={cartItems} onConfirm={addRule} />
+        </section>
 
         {!showResults && (
           <div style={{ textAlign: 'center', marginBottom: '1.2rem' }}>
