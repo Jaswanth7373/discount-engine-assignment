@@ -28,20 +28,20 @@ import { formatRs } from './engine/format.js'
 const capitalise = (v) => v.charAt(0).toUpperCase() + v.slice(1)
 
 const RULES_COLUMNS = [
-  { key: 'ruleId',       label: 'Rule ID' },
+  { key: 'ruleId',       label: 'Rule ID', nowrap: true },
   { key: 'scope',        label: 'Scope',      render: capitalise },
   { key: 'appliesTo',    label: 'Applies To', render: (v) => v ?? 'Entire cart' },
-  { key: 'value',        label: 'Offer',      render: (_, row) => offerValue(row) },
+  { key: 'value',        label: 'Offer',      render: (_, row) => offerValue(row), nowrap: true },
   { key: 'minCartValue', label: 'Condition',  render: (v) => (v ? `Cart ≥ ${formatRs(v)}` : '—') },
   { key: 'stackable',    label: 'Stackable',  render: (v) => (v ? 'Yes' : 'No') },
 ]
 
 const CART_COLUMNS = [
-  { key: 'itemId',    label: 'Item' },
+  { key: 'itemId',    label: 'Item', nowrap: true },
   { key: 'product',   label: 'Product' },
   { key: 'brand',     label: 'Brand' },
   { key: 'platform',  label: 'Platform' },
-  { key: 'basePrice', label: 'Base Price', render: formatRs },
+  { key: 'basePrice', label: 'Base Price', render: formatRs, nowrap: true },
 ]
 
 // ── Styles ───────────────────────────────────────────────────────
@@ -69,10 +69,12 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 export default function App() {
   const [rules, setRules]             = useState([])
-  const [rulesStatus, setRulesStatus] = useState(null)   // { source, result }
+  const [rulesStatus, setRulesStatus] = useState(null)   // last attempt: { source, result }
+  const [rulesFile, setRulesFile]     = useState('')     // last file that loaded
 
   const [cartItems, setCartItems]     = useState([])
-  const [cartStatus, setCartStatus]   = useState(null)   // { source, result }
+  const [cartStatus, setCartStatus]   = useState(null)   // last attempt: { source, result }
+  const [cartFile, setCartFile]       = useState('')     // last file that loaded
 
   const [pdfBusy, setPdfBusy]         = useState(false)
 
@@ -85,7 +87,9 @@ export default function App() {
   /** A failed load never wipes the current rules. */
   function loadRules(result, source) {
     setRulesStatus({ source, result })
-    if (result.ok) setRules(result.data)
+    if (!result.ok) return
+    setRules(result.data)
+    setRulesFile(source)
   }
 
   /** A failed load never wipes the current cart. */
@@ -93,6 +97,7 @@ export default function App() {
     setCartStatus({ source, result })
     if (!result.ok) return
     setCartItems(result.data)
+    setCartFile(source)
     if (revealResults) setShowResults(true)
   }
 
@@ -148,7 +153,7 @@ export default function App() {
               accept=".csv,text/csv"
               onFile={handleRulesFile}
               hasData={rules.length > 0}
-              fileName={rulesStatus?.source}
+              fileName={rulesFile}
             />
             <InputStatus status={rulesStatus} />
             {rules.length > 0 && (
@@ -188,16 +193,16 @@ export default function App() {
                 description="Upload your cart CSV"
                 accept=".csv,text/csv"
                 onFile={handleCartCsv}
-                hasData={cartItems.length > 0 && /\.csv$/i.test(cartStatus?.source ?? '')}
-                fileName={cartStatus?.source}
+                hasData={/\.csv$/i.test(cartFile)}
+                fileName={cartFile}
               />
               <FileUploader
                 label="Cart PDF"
                 description="Or upload an order PDF (Product, Brand, Platform, Base Price) to replace the cart"
                 accept=".pdf,application/pdf"
                 onFile={handleCartPdf}
-                hasData={cartItems.length > 0 && /\.pdf$/i.test(cartStatus?.source ?? '')}
-                fileName={cartStatus?.source}
+                hasData={/\.pdf$/i.test(cartFile)}
+                fileName={cartFile}
                 busy={pdfBusy}
               />
             </div>

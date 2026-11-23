@@ -21,7 +21,7 @@ const EXAMPLES = [
 ]
 
 const S = {
-  textarea: { width: '100%', minHeight: 64, resize: 'vertical', font: 'inherit', fontSize: 13, padding: '0.55rem 0.7rem', border: '1px solid #CECECE', borderRadius: 4 },
+  textarea: { font: 'inherit', fontSize: 13, width: '100%', minHeight: 64, resize: 'vertical', padding: '0.55rem 0.7rem', border: '1px solid #CECECE', borderRadius: 4 },
   btn: (variant, enabled = true) => ({
     background: !enabled ? '#CECECE' : variant === 'primary' ? '#FF5800' : variant === 'confirm' ? '#1e5c2c' : '#fff',
     color: variant === 'ghost' && enabled ? '#131A48' : '#fff',
@@ -29,7 +29,7 @@ const S = {
     borderRadius: 4, padding: '0.5rem 1.1rem', fontSize: 12, fontWeight: 700,
     cursor: enabled ? 'pointer' : 'not-allowed', letterSpacing: '0.04em', textTransform: 'uppercase',
   }),
-  chip: { background: '#f3f4f8', border: '1px solid #e1e3ec', borderRadius: 14, padding: '3px 10px', fontSize: 11, color: '#131A48', cursor: 'pointer', font: 'inherit' },
+  chip: { font: 'inherit', fontSize: 11, background: '#f3f4f8', border: '1px solid #e1e3ec', borderRadius: 14, padding: '3px 10px', color: '#131A48', cursor: 'pointer', textAlign: 'left' },
   card: { border: '1px solid #131A48', borderRadius: 6, padding: '0.9rem 1rem', marginTop: '0.75rem', background: '#fbfbfe' },
   dl: { display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 14px', margin: '0.5rem 0', fontSize: 13 },
   dt: { color: '#666' },

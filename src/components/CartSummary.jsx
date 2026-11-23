@@ -82,7 +82,7 @@ export default function CartSummary({ calculation }) {
               <strong>Cart offer: {offerValue(cartOffer.rule)}</strong>
               {' '}— {formatRs(cartOffer.saving)} saved
               <span style={{ display: 'block', fontSize: 11, color: '#a07020' }}>
-                Your cart is over {formatRs(cartOffer.rule.minCartValue)} ({cartOffer.rule.ruleId})
+                Your cart reached {formatRs(cartOffer.rule.minCartValue)} ({cartOffer.rule.ruleId})
               </span>
             </span>
             <span style={{ fontWeight: 700, color: '#1e5c2c', whiteSpace: 'nowrap' }}>−{formatRs(cartOffer.saving)}</span>
