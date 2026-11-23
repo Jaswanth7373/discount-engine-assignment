@@ -82,7 +82,7 @@ describe('handler', () => {
 
   it('never leaks raw upstream errors', async () => {
     const client = clientReturning(async () => {
-      throw new Error('secret upstream detail sk-ant-xxx')
+      throw new Error('secret upstream detail')
     })
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const res = await call(createHandler({ getClient: () => client }), { method: 'POST', body: { text: '10% off' } })
