@@ -33,9 +33,18 @@ function readTable(csvText, kind, expected, required) {
     transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, '_'),
   })
 
-  const missing = required.filter((col) => !meta.fields?.includes(col))
+  const fields = meta.fields ?? []
+  const missing = required.filter((col) => !fields.includes(col))
   if (missing.length > 0) {
-    return fail(`This doesn't look like a ${kind} file (missing: ${missing.join(', ')}). ${expectedText}`)
+    const hasAll = (cols) => cols.every((col) => fields.includes(col))
+    if (kind === 'rules' && hasAll(CART_COLUMNS)) {
+      return fail('This is a cart file, not a rules file. Upload it in the Cart Items box (cart.csv), and upload a rules file here.')
+    }
+    if (kind === 'cart' && hasAll(REQUIRED_RULE_COLUMNS)) {
+      return fail('This is a rules file, not a cart file. Upload it in the Discount Rules box, and upload a cart file here.')
+    }
+    const found = fields.filter(Boolean).slice(0, 8).join(', ') || 'none'
+    return fail(`This doesn't look like a ${kind} file (missing: ${missing.join(', ')}; found: ${found}). ${expectedText}`)
   }
   if (errors.length > 0 && rows.length === 0) {
     return fail(`Couldn't read this ${kind} file. Check it is comma-separated with a header row. ${expectedText}`)

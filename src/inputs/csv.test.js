@@ -12,9 +12,15 @@ describe('csv adapter: file-level problems', () => {
 
   it('spots a cart file uploaded as rules (and vice versa) from the header', () => {
     const cartAsRules = parseRulesCSV(CART + 'ITEM-01,Vase,B,Noon,100\n')
-    expect(cartAsRules.error).toMatch(/doesn't look like a rules file \(missing: rule_id, scope, type, value\)/)
+    expect(cartAsRules.error).toMatch(/^This is a cart file, not a rules file\. Upload it in the Cart Items box/)
     const rulesAsCart = parseCartCSV(RULES + 'RULE-01,platform,Noon,flat,10,false,\n')
-    expect(rulesAsCart.error).toMatch(/doesn't look like a cart file/)
+    expect(rulesAsCart.error).toMatch(/^This is a rules file, not a cart file/)
+  })
+
+  it('lists the columns it found when a file is neither kind', () => {
+    expect(parseCartCSV('name,price\nVase,100\n').error).toContain(
+      "doesn't look like a cart file (missing: item_id, product, brand, platform, base_price; found: name, price)",
+    )
   })
 
   it('reports a header-only file as having no rows', () => {

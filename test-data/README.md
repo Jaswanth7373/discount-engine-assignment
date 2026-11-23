@@ -445,9 +445,9 @@ every new rules file, cart file, PDF or confirmed plain-English rule re-runs the
 |---|---|---|
 | `cart-header-only.csv` | cart.csv | Error: No cart items found. Expected columns: item_id, product, brand, platform, base_price. — previous data kept |
 | `cart-empty.csv` | cart.csv | Error: This file is empty. Expected columns: item_id, product, brand, platform, base_price. — previous data kept |
-| `rules-file-uploaded-as-cart.csv` | cart.csv | Error: This doesn't look like a cart file (missing: item_id, product, brand, platform, base_price). Expected columns: item_id, product, brand, platform, base_price. — previous data kept |
+| `rules-file-uploaded-as-cart.csv` | cart.csv | Error: This is a rules file, not a cart file. Upload it in the Discount Rules box, and upload a cart file here. — previous data kept |
 | `rules-header-only.csv` | rules.csv | Error: No rules found. Expected columns: rule_id, scope, applies_to, type, value, stackable, min_cart_value. — previous data kept |
-| `cart-file-uploaded-as-rules.csv` | rules.csv | Error: This doesn't look like a rules file (missing: rule_id, scope, type, value). Expected columns: rule_id, scope, applies_to, type, value, stackable, min_cart_value. — previous data kept |
+| `cart-file-uploaded-as-rules.csv` | rules.csv | Error: This is a cart file, not a rules file. Upload it in the Cart Items box (cart.csv), and upload a rules file here. — previous data kept |
 
 ---
 
