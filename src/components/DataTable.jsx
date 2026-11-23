@@ -5,7 +5,7 @@
  * Columns are defined as [{ key, label, render? }].
  */
 
-export default function DataTable({ columns, rows, emptyMessage = 'No data loaded.' }) {
+export default function DataTable({ columns, rows, rowKey, emptyMessage = 'No data loaded.' }) {
   if (!rows || rows.length === 0) {
     return (
       <div
@@ -49,7 +49,7 @@ export default function DataTable({ columns, rows, emptyMessage = 'No data loade
         <tbody>
           {rows.map((row, i) => (
             <tr
-              key={i}
+              key={rowKey ? row[rowKey] : i}
               style={{ background: i % 2 === 0 ? '#fff' : '#fafafa', borderBottom: '1px solid #f0f0f0' }}
             >
               {columns.map((col) => (
