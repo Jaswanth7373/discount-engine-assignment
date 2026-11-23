@@ -38,7 +38,8 @@ The calls I made where the brief left room, and why. Each one is enforced in cod
 - **Unknown names:** if the brand or platform isn't in the current cart, I warn but don't block, and suggest the closest name ("Did you mean Natura Casa?"). A rule for a brand that isn't in today's cart can still be legitimate.
 
 **10. Serverless proxy for the LLM, PDF parsing in the browser.**
-- **LLM proxy:** the Anthropic key must never reach the bundle, so `api/parse-rule.js` (a Vercel function) holds it. It uses a 10 s timeout and no retries: a user waiting on a button is better served by a fast, clear "try again" than a 30 s silent retry.
+- **LLM proxy:** the Groq API key must never reach the bundle, so `api/parse-rule.js` (a Vercel function) holds it. It uses Groq's JSON mode, temperature 0, a 10 s timeout and no retries: a user waiting on a button is better served by a fast, clear "try again" than a 30 s silent retry.
+- **Provider is swappable:** only `api/parse-rule.js` knows it talks to Groq (`openai/gpt-oss-120b`, chosen for fast, cheap JSON-mode extraction). It returns raw text, and all validation happens in the browser, so switching to another LLM means changing one file.
 - **PDF parsing** needs no secret, and pdf.js runs well in the browser, so it stays client-side. It is lazy-loaded so the main bundle stays small.
 
 **11. Prompt injection and input length.**

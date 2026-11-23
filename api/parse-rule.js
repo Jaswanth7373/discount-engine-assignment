@@ -1,17 +1,18 @@
 /**
  * POST /api/parse-rule   { text: string }  →  200 { raw: string } | 4xx/5xx { error: string }
  *
- * Vercel serverless function. Keeps ANTHROPIC_API_KEY on the server and forwards
- * one sentence to Claude. It deliberately returns the model's raw text: the
- * client adapter (src/inputs/nlRule.js) is the single place that parses and
- * validates it, so nothing the model says is trusted without that check.
+ * Vercel serverless function. Keeps GROQ_API_KEY on the server and forwards
+ * one sentence to an LLM on Groq (OpenAI-compatible chat completions API).
+ * It deliberately returns the model's raw text: the client adapter
+ * (src/inputs/nlRule.js) is the single place that parses and validates it,
+ * so nothing the model says is trusted without that check.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
 import { SYSTEM_PROMPT } from './_prompt.js'
 
 export const MAX_TEXT_LENGTH = 300
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
+export const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const DEFAULT_MODEL = 'openai/gpt-oss-120b'
 const TIMEOUT_MS = 10_000
 
 /**
@@ -42,26 +43,17 @@ export function wrapUserText(text) {
   return `<rule_text>${text.replace(/<\/?rule_text>/gi, '')}</rule_text>`
 }
 
-function upstreamError(err) {
-  if (err instanceof Anthropic.APIConnectionTimeoutError) {
-    return [504, 'The rule assistant took too long to respond. Please try again.']
-  }
-  if (err instanceof Anthropic.RateLimitError) {
-    return [502, 'The rule assistant is busy right now. Please try again in a moment.']
-  }
-  if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
-    return [503, "The rule assistant isn't configured correctly on this server."]
-  }
-  if (err instanceof Anthropic.APIError && (err.status ?? 0) >= 500) {
-    return [502, 'The rule assistant is temporarily unavailable. Please try again.']
-  }
+function upstreamError(status) {
+  if (status === 401 || status === 403) return [503, "The rule assistant isn't configured correctly on this server."]
+  if (status === 429) return [502, 'The rule assistant is busy right now. Please try again in a moment.']
+  if (status >= 500) return [502, 'The rule assistant is temporarily unavailable. Please try again.']
   return [502, "The rule assistant couldn't process that request. Please try again."]
 }
 
 /**
- * @param {{ getClient: () => Pick<Anthropic, 'messages'> | null }} deps
+ * @param {{ apiKey: string | undefined, model?: string, fetchImpl?: typeof fetch }} deps
  */
-export function createHandler({ getClient }) {
+export function createHandler({ apiKey, model = DEFAULT_MODEL, fetchImpl = fetch }) {
   return async function handler(req, res) {
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'POST')
@@ -71,41 +63,53 @@ export function createHandler({ getClient }) {
     const input = validateRequestBody(req.body)
     if (!input.ok) return res.status(400).json({ error: input.error })
 
-    const client = getClient()
-    if (!client) {
+    if (!apiKey) {
       return res.status(503).json({ error: "The rule assistant isn't configured on this server." })
     }
 
-    try {
-      const message = await client.messages.create(
-        {
-          model: MODEL,
-          max_tokens: 1024,
-          system: SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: wrapUserText(input.text) }],
-        },
-        { timeout: TIMEOUT_MS, maxRetries: 0 },
-      )
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
-      if (message.stop_reason === 'refusal') {
-        return res.status(422).json({ error: "The rule assistant couldn't help with that text. Please rephrase it as a discount." })
+    try {
+      const upstream = await fetchImpl(GROQ_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          temperature: 0,
+          max_completion_tokens: 1024,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: wrapUserText(input.text) },
+          ],
+        }),
+        signal: controller.signal,
+      })
+
+      if (!upstream.ok) {
+        // Log the status only: never the key, the request headers or the raw upstream body.
+        console.error(`parse-rule upstream error: HTTP ${upstream.status}`)
+        const [status, error] = upstreamError(upstream.status)
+        return res.status(status).json({ error })
       }
 
-      const raw = message.content
-        .filter((block) => block.type === 'text')
-        .map((block) => block.text)
-        .join('')
-      return res.status(200).json({ raw })
+      const data = await upstream.json()
+      const raw = data?.choices?.[0]?.message?.content
+      return res.status(200).json({ raw: typeof raw === 'string' ? raw : '' })
     } catch (err) {
-      const [status, error] = upstreamError(err)
-      // Log the type only: never the key, the request headers or the raw upstream body.
-      console.error(`parse-rule upstream error: ${err?.constructor?.name ?? 'Error'} ${err?.status ?? ''}`)
-      return res.status(status).json({ error })
+      if (err?.name === 'AbortError') {
+        return res.status(504).json({ error: 'The rule assistant took too long to respond. Please try again.' })
+      }
+      console.error(`parse-rule request failed: ${err?.name ?? 'Error'}`)
+      return res.status(502).json({ error: "The rule assistant couldn't be reached. Please try again." })
+    } finally {
+      clearTimeout(timer)
     }
   }
 }
 
 export default createHandler({
-  getClient: () =>
-    process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null,
+  apiKey: process.env.GROQ_API_KEY,
+  model: process.env.GROQ_MODEL || DEFAULT_MODEL,
 })

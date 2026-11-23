@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import Anthropic from '@anthropic-ai/sdk'
-import { createHandler, validateRequestBody, wrapUserText } from './parse-rule.js'
+import { createHandler, validateRequestBody, wrapUserText, GROQ_URL } from './parse-rule.js'
 
 function mockRes() {
   const res = { statusCode: 200, body: undefined, headers: {} }
@@ -16,7 +15,13 @@ const call = async (handler, req) => {
   return res
 }
 
-const clientReturning = (impl) => ({ messages: { create: vi.fn(impl) } })
+const groqReply = (content, status = 200) =>
+  new Response(JSON.stringify({ choices: [{ message: { content } }] }), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
+
+const post = (text) => ({ method: 'POST', body: { text } })
 
 describe('validateRequestBody', () => {
   it.each([
@@ -43,49 +48,61 @@ describe('wrapUserText', () => {
 
 describe('handler', () => {
   it('rejects non-POST requests', async () => {
-    const res = await call(createHandler({ getClient: () => null }), { method: 'GET' })
+    const res = await call(createHandler({ apiKey: 'k' }), { method: 'GET' })
     expect(res.statusCode).toBe(405)
   })
 
   it('returns 400 for bad input without calling the model', async () => {
-    const client = clientReturning()
-    const res = await call(createHandler({ getClient: () => client }), { method: 'POST', body: { text: '' } })
+    const fetchImpl = vi.fn()
+    const res = await call(createHandler({ apiKey: 'k', fetchImpl }), post(''))
     expect(res.statusCode).toBe(400)
-    expect(client.messages.create).not.toHaveBeenCalled()
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('returns 503 when no API key is configured', async () => {
-    const res = await call(createHandler({ getClient: () => null }), { method: 'POST', body: { text: '10% off' } })
+    const res = await call(createHandler({ apiKey: undefined }), post('10% off'))
     expect(res.statusCode).toBe(503)
   })
 
-  it('returns the model text, wrapped user input, no retries, 10s timeout', async () => {
-    const client = clientReturning(async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{"status":"ok"}' }] }))
-    const res = await call(createHandler({ getClient: () => client }), { method: 'POST', body: { text: '10% off on Noon' } })
+  it('sends wrapped user text in JSON mode and returns the model text', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(groqReply('{"status":"ok"}'))
+    const res = await call(createHandler({ apiKey: 'test-key', model: 'm', fetchImpl }), post('10% off on Noon'))
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({ raw: '{"status":"ok"}' })
-    const [params, options] = client.messages.create.mock.calls[0]
-    expect(params.model).toBe('claude-sonnet-4-6')
-    expect(params.messages[0].content).toBe('<rule_text>10% off on Noon</rule_text>')
-    expect(options).toEqual({ timeout: 10_000, maxRetries: 0 })
+
+    const [url, init] = fetchImpl.mock.calls[0]
+    const sent = JSON.parse(init.body)
+    expect(url).toBe(GROQ_URL)
+    expect(init.headers.Authorization).toBe('Bearer test-key')
+    expect(sent.model).toBe('m')
+    expect(sent.response_format).toEqual({ type: 'json_object' })
+    expect(sent.messages[1]).toEqual({ role: 'user', content: '<rule_text>10% off on Noon</rule_text>' })
   })
 
-  it('maps an upstream timeout to 504 with a friendly message', async () => {
-    const client = clientReturning(async () => {
-      throw new Anthropic.APIConnectionTimeoutError()
-    })
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    const res = await call(createHandler({ getClient: () => client }), { method: 'POST', body: { text: '10% off' } })
+  it('maps a timeout to 504 with a friendly message', async () => {
+    const fetchImpl = vi.fn().mockRejectedValue(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+    const res = await call(createHandler({ apiKey: 'k', fetchImpl }), post('10% off'))
     expect(res.statusCode).toBe(504)
     expect(res.body.error).toMatch(/took too long/)
   })
 
-  it('never leaks raw upstream errors', async () => {
-    const client = clientReturning(async () => {
-      throw new Error('secret upstream detail')
-    })
+  it.each([
+    [429, 502, /busy/],
+    [503, 502, /temporarily unavailable/],
+    [401, 503, /configured correctly/],
+  ])('maps upstream %i to %i', async (upstream, expected, message) => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    const res = await call(createHandler({ getClient: () => client }), { method: 'POST', body: { text: '10% off' } })
+    const fetchImpl = vi.fn().mockResolvedValue(groqReply('secret upstream detail', upstream))
+    const res = await call(createHandler({ apiKey: 'k', fetchImpl }), post('10% off'))
+    expect(res.statusCode).toBe(expected)
+    expect(res.body.error).toMatch(message)
+    expect(JSON.stringify(res.body)).not.toContain('secret')
+  })
+
+  it('never leaks network error details', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const fetchImpl = vi.fn().mockRejectedValue(new TypeError('secret socket detail'))
+    const res = await call(createHandler({ apiKey: 'k', fetchImpl }), post('10% off'))
     expect(res.statusCode).toBe(502)
     expect(JSON.stringify(res.body)).not.toContain('secret')
   })

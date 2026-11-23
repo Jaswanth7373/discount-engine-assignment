@@ -10,12 +10,12 @@ Three ways to feed it, all through the same untouched engine:
 |---|---|
 | **CSV** (rules + cart) | The original upload flow. |
 | **PDF cart** | Upload an order PDF (Product / Brand / Platform / Base Price). It replaces the cart and prices re-run instantly. |
-| **Plain-English rule** | "20% off for Natura Casa brand, stackable". Claude parses it, you check it on a confirmation card, and it is added only when you confirm. |
+| **Plain-English rule** | "20% off for Natura Casa brand, stackable". An LLM on Groq (`openai/gpt-oss-120b`) parses it, you check it on a confirmation card, and it is added only when you confirm. |
 
 ## Run locally
 
 1. `npm install`
-2. `cp .env.example .env.local` and set `ANTHROPIC_API_KEY`
+2. `cp .env.example .env.local` and set `GROQ_API_KEY` (free key at console.groq.com)
 3. `npx vercel dev`, then open the URL it prints
 
 `npm run dev` also works and serves the UI on http://localhost:5173, but without the `/api` function. CSV and PDF work fully. The plain-English rule box then shows a friendly "AI rule parsing isn't available in this environment" message instead of failing.
@@ -56,7 +56,7 @@ Regenerate the PDFs with `npm run make:pdfs`.
                                                         ▼
                     components/CartSummary.jsx: items, cart offer row, nudge, total
 
- api/parse-rule.js: Vercel function. Holds ANTHROPIC_API_KEY and calls Claude.
+ api/parse-rule.js: Vercel function. Holds GROQ_API_KEY and calls the LLM on Groq.
  It returns the model's raw text; the browser validates it.
 ```
 
@@ -94,6 +94,6 @@ npm test
 
 ## Deploying (Vercel)
 
-Import the repo in Vercel; it detects Vite and deploys `api/` as functions. Set `ANTHROPIC_API_KEY` in **Project → Settings → Environment Variables**, then redeploy.
+Import the repo in Vercel; it detects Vite and deploys `api/` as functions. Set `GROQ_API_KEY` in **Project → Settings → Environment Variables**, then redeploy.
 
 Design decisions and the places I disagree with the brief are in [DECISIONS.md](DECISIONS.md).
