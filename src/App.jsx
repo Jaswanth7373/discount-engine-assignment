@@ -9,7 +9,7 @@ import { useState } from 'react'
 import CsvUploader from './components/CsvUploader.jsx'
 import DataTable from './components/DataTable.jsx'
 import ErrorBanner from './components/ErrorBanner.jsx'
-import { parseRulesCSV, parseCartCSV } from './engine/csvParser.js'
+import { parseRulesCSV, parseCartCSV } from './inputs/csv.js'
 import { processCart, cartTotal } from './engine/discountEngine.js'
 
 // ── Column definitions ───────────────────────────────────────────
@@ -118,17 +118,17 @@ export default function App() {
   // ── Handlers ──
 
   function handleRulesLoad(csvText, fileName) {
-    const { data, errors } = parseRulesCSV(csvText)
-    setRules(data)
-    setRulesErr(errors)
+    const result = parseRulesCSV(csvText)
+    setRules(result.ok ? result.data : [])
+    setRulesErr(result.ok ? result.warnings : [result.error])
     setRulesFileName(fileName)
     setResults(null) // clear stale results
   }
 
   function handleCartLoad(csvText, fileName) {
-    const { data, errors } = parseCartCSV(csvText)
-    setCartItems(data)
-    setCartErrors(errors)
+    const result = parseCartCSV(csvText)
+    setCartItems(result.ok ? result.data : [])
+    setCartErrors(result.ok ? result.warnings : [result.error])
     setCartFileName(fileName)
     setResults(null)
   }
