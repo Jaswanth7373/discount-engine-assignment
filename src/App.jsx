@@ -16,6 +16,8 @@ import DataTable from './components/DataTable.jsx'
 import InputStatus from './components/InputStatus.jsx'
 import CartSummary from './components/CartSummary.jsx'
 import { parseRulesCSV, parseCartCSV } from './inputs/csv.js'
+import { parsePdfCart } from './inputs/pdfCart.js'
+import { fail } from './inputs/inputResult.js'
 import { calculateCart, offerValue } from './engine/discountEngine.js'
 import { formatRs } from './engine/format.js'
 
@@ -70,6 +72,8 @@ export default function App() {
   const [cartItems, setCartItems]     = useState([])
   const [cartStatus, setCartStatus]   = useState(null)   // { source, result }
 
+  const [pdfBusy, setPdfBusy]         = useState(false)
+
   const [showResults, setShowResults] = useState(false)
 
   const calculation = useMemo(() => calculateCart(cartItems, rules), [cartItems, rules])
@@ -96,6 +100,18 @@ export default function App() {
 
   async function handleCartCsv(file) {
     loadCart(parseCartCSV(await file.text()), file.name)
+  }
+
+  /** A PDF replaces the cart and re-runs the engine with the current rules. */
+  async function handleCartPdf(file) {
+    setPdfBusy(true)
+    try {
+      loadCart(await parsePdfCart(file), file.name, { revealResults: true })
+    } catch {
+      loadCart(fail("Something went wrong reading this PDF. Please try again or use the CSV."), file.name)
+    } finally {
+      setPdfBusy(false)
+    }
   }
 
   const canCalculate = cartItems.length > 0
@@ -134,14 +150,25 @@ export default function App() {
           {/* Cart */}
           <section style={S.section} aria-labelledby="cart-title">
             <h2 id="cart-title" style={S.sectionTitle}>Cart Items</h2>
-            <FileUploader
-              label="cart.csv"
-              description="Upload your cart CSV"
-              accept=".csv,text/csv"
-              onFile={handleCartCsv}
-              hasData={cartItems.length > 0}
-              fileName={cartStatus?.source}
-            />
+            <div style={{ display: 'grid', gap: '0.5rem' }}>
+              <FileUploader
+                label="cart.csv"
+                description="Upload your cart CSV"
+                accept=".csv,text/csv"
+                onFile={handleCartCsv}
+                hasData={cartItems.length > 0 && /\.csv$/i.test(cartStatus?.source ?? '')}
+                fileName={cartStatus?.source}
+              />
+              <FileUploader
+                label="Cart PDF"
+                description="Or upload an order PDF (Product, Brand, Platform, Base Price) to replace the cart"
+                accept=".pdf,application/pdf"
+                onFile={handleCartPdf}
+                hasData={cartItems.length > 0 && /\.pdf$/i.test(cartStatus?.source ?? '')}
+                fileName={cartStatus?.source}
+                busy={pdfBusy}
+              />
+            </div>
             <InputStatus status={cartStatus} />
             {cartItems.length > 0 && (
               <div style={{ marginTop: '0.75rem' }}>
